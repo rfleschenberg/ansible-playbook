@@ -35,6 +35,7 @@
         - motd
         - nginx
         - timezone
+        - letsencrypt
 
     - name: Fail if no administrative email set
       fail:
@@ -88,6 +89,19 @@
       tags:
         - nginx
         - haproxy
+
+    - name: Enable backports repository
+      apt_repository:
+        repo: deb http://ftp.debian.org/debian jessie-backports main
+        state: present
+      tags: nginx
+
+    - name: Install nginx
+      apt:
+        name: nginx
+        state: latest
+        default_release: jessie-backports
+      tags: nginx
 
   roles:
 
@@ -200,3 +214,66 @@
     - name: update timezone
       when: ansible_os_family == 'RedHat'
       file: src=/usr/share/zoneinfo/{{ timezone|default("UTC\n") }}  dest=/etc/localtime state=link force=yes
+
+
+- hosts: all
+  become: yes
+  become_method: sudo
+  gather_facts: yes
+
+  roles:
+
+    - name: letsencrypt
+      vars:
+        - letsencrypt_webroot_path: /var/www/letsencrypt
+        - letsencrypt_cert_domains: "{{ webserver_virtualhosts|map(attribute='hostname')|list + webserver_virtualhosts|map(attribute='aliases')|list }}"
+        - letsencrypt_renewal_command_args: systemctl reload nginx
+      tags: letsencrypt
+
+  pre_tasks:
+
+    - name: Patch nginx config for Letsencrypt authentication
+      blockinfile:
+        dest: /etc/nginx/sites-enabled/{{ item.protocol|default('http') }}_{{ item.hostname|default(inventory_hostname)|replace('.', '_') }}
+        insertafter: "^server {$"
+        block: |
+          location /.well-known/acme-challenge/ {
+            alias /var/www/letsencrypt/.well-known/acme-challenge/;
+          }
+      with_items: "{{ webserver_virtualhosts }}"
+      notify: reload nginx
+      tags: letsencrypt
+
+  post_tasks:
+
+    - name: Link certificate
+      file:
+        src: /etc/letsencrypt/live/{{ item.hostname }}/cert.pem
+        dest: /etc/nginx/ssl/{{ item.hostname }}.crt
+        state: link
+      with_items: "{{ webserver_virtualhosts }}"
+      tags: letsencrypt
+
+    - name: Link key
+      file:
+        src: /etc/letsencrypt/live/{{ item.hostname }}/privkey.pem
+        dest: /etc/nginx/ssl/{{ item.hostname }}.key
+        state: link
+      with_items: "{{ webserver_virtualhosts }}"
+      tags: letsencrypt
+
+    - name: Replace non-SSL vhosts
+      template:
+        src: ssl_redirect_vhost.j2
+        dest: /etc/nginx/sites-enabled/http_{{ item.hostname|default(inventory_hostname)|replace('.', '_') }}
+      when: "{{ item.protocol == 'https' }}"
+      with_items: "{{ webserver_virtualhosts }}"
+      notify: reload nginx
+      tags: letsencrypt
+
+  handlers:
+
+    - name: reload nginx
+      service:
+        name: nginx
+        state: reloaded

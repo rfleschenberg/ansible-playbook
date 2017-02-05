@@ -1,0 +1,12 @@
+server {
+  listen *:80 {% if item.get('default_server') %}default_server{% endif %};
+
+  server_name {{ item.hostname }} {% for alias in item.get('aliases', []) %}{{ alias }} {% endfor %};
+
+  client_max_body_size {{ item.client_max_body_size|default('2M') }};
+
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $remote_addr;
+
+  return 301 https://{{ item.hostname }}$request_uri;
+}

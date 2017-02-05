@@ -18,3 +18,7 @@
 - src: https://github.com/Oefenweb/ansible-fail2ban.git
   version: v1.5.1
   name: tersmitten.fail2ban
+
+- src: https://github.com/thefinn93/ansible-letsencrypt
+  version: 9d95251
+  name: letsencrypt
