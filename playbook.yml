@@ -226,7 +226,6 @@
     - name: letsencrypt
       vars:
         - letsencrypt_webroot_path: /var/www/letsencrypt
-        - letsencrypt_cert_domains: "{{ webserver_virtualhosts|map(attribute='hostname')|list + webserver_virtualhosts|map(attribute='aliases')|list }}"
         - letsencrypt_renewal_command_args: systemctl reload nginx
       tags: letsencrypt
 
@@ -248,18 +247,18 @@
 
     - name: Link certificate
       file:
-        src: /etc/letsencrypt/live/{{ item.hostname }}/cert.pem
-        dest: /etc/nginx/ssl/{{ item.hostname }}.crt
+        src: /etc/letsencrypt/live/{{ letsencrypt_cert_domains.0 }}/cert.pem
+        dest: /etc/nginx/ssl/{{ item }}.crt
         state: link
-      with_items: "{{ webserver_virtualhosts }}"
+      with_items: "{{ letsencrypt_cert_domains }}"
       tags: letsencrypt
 
     - name: Link key
       file:
-        src: /etc/letsencrypt/live/{{ item.hostname }}/privkey.pem
-        dest: /etc/nginx/ssl/{{ item.hostname }}.key
+        src: /etc/letsencrypt/live/{{ letsencrypt_cert_domains.0 }}/privkey.pem
+        dest: /etc/nginx/ssl/{{ item }}.key
         state: link
-      with_items: "{{ webserver_virtualhosts }}"
+      with_items: "{{ letsencrypt_cert_domains }}"
       tags: letsencrypt
 
     - name: Replace non-SSL vhosts
