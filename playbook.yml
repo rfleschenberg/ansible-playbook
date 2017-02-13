@@ -247,7 +247,7 @@
 
     - name: Link certificate
       file:
-        src: /etc/letsencrypt/live/{{ letsencrypt_cert_domains.0 }}/cert.pem
+        src: /etc/letsencrypt/live/{{ letsencrypt_cert_domains.0 }}/fullchain.pem
         dest: /etc/nginx/ssl/{{ item }}.crt
         state: link
       with_items: "{{ letsencrypt_cert_domains }}"
