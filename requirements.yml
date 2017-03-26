@@ -20,5 +20,5 @@
   name: tersmitten.fail2ban
 
 - src: https://github.com/thefinn93/ansible-letsencrypt
-  version: 9d95251
+  version: cfc0b93
   name: letsencrypt
